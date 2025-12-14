@@ -1,0 +1,54 @@
+
+\section{Background} \label{sec:background}
+
+To define the dependency resolution problem rigorously, one must first establish the structural properties of the ecosystem in question and the specific rules governing compatibility.
+
+\subsection{The npm Ecosystem and Dependency Graphs}
+The npm registry can be modeled as a directed graph where nodes represent software packages. However, unlike standard static graphs, the npm graph is temporal and versioned. A "package" is not a singular entity but a collection of distinct \textit{versions}.
+
+Let $\mathcal{P}$ denote the set of all package names in the registry. For any package $p \in \mathcal{P}$, there exists a finite, ordered set of versions $V_p$. A specific instance of a package is defined by the tuple $(p, v)$ where $v \in V_p$.
+
+Dependencies are directional relationships between a specific version of a package and a set of required packages. If package $A$ at version $1.0.0$ depends on package $B$, it does not point to a specific version of $B$ (e.g., $B@2.1.0$), but rather to a \textit{range} of acceptable versions. This allows for flexibility and automatic patch updates but introduces the nondeterminism that necessitates a complex resolution algorithm.
+
+\subsection{Semantic Versioning (SemVer)}
+The constraints governing the edges of the dependency graph are defined by the Semantic Versioning specification. A SemVer version is a 3-component vector $v = (M, m, p) \in \mathbb{N}^3$, representing the Major, Minor, and Patch numbers, respectively.
+
+The ordering of versions is lexicographical. Given two versions $v_1 = (M_1, m_1, p_1)$ and $v_2 = (M_2, m_2, p_2)$, we define $v_1 < v_2$ if:
+\begin{enumerate}
+    \item $M_1 < M_2$, or
+    \item $M_1 = M_2 \land m_1 < m_2$, or
+    \item $M_1 = M_2 \land m_1 = m_2 \land p_1 < p_2$.
+\end{enumerate}
+
+A \textit{dependency constraint} is a predicate function $f_c: V_p \to \{0, 1\}$ defined by a range string (e.g., \texttt{\textasciicircum 1.2.0} or \texttt{>= 2.0.0}). A version $v$ satisfies the constraint if $f_c(v) = 1$. The core challenge of SemVer in dependency resolution is ensuring that for every dependency relation, the selected version falls within the intersection of all active constraints targeting that package.
+
+\subsection{Algorithmic Complexity: From SAT to COP}
+The problem of dependency resolution is a specific instance of the Boolean Satisfiability Problem (SAT). Specifically, it maps to the "package management problem," which has been proven to be NP-complete.
+
+Consider a system where we must select at most one version for every package $p$. Let $x_{p,v}$ be a boolean variable representing the installation of package $p$ at version $v$. The system must satisfy clauses such as:
+\begin{itemize}
+    \item \textbf{Singleton Constraint:} For a given package $p$, $\sum_{v \in V_p} x_{p,v} \leq 1$ (if we assume a flat dependency tree).
+    \item \textbf{Dependency Implication:} If $x_{p,v}$ is true, and $p@v$ depends on package $q$ with constraint $C$, then $\bigvee_{u \in V_q, C(u)=1} x_{q,u}$ must be true.
+\end{itemize}
+
+While finding \textit{any} satisfying assignment is an NP-complete decision problem (SAT), the npm ecosystem introduces an additional dimension: optimality. Users generally prefer the most recent release of a package to ensure security and feature parity.
+
+This transforms the problem from SAT to a Constraint Optimization Problem (COP). We are not merely searching for a feasible region in the solution space; we are searching for a solution vector $\mathbf{S}$ that maximizes an objective function $R(\mathbf{S})$. This adds significant complexity, as the solver must prune branches of the search tree that are valid but suboptimal, or employ heuristics to traverse the version space in descending order.
+
+\subsection{Dependency Classifications and Propagation}
+The edges of the dependency graph are not uniform; their behavior is determined by the classification of the dependency. We distinguish between three primary types of relationships, each imposing different traversal rules and constraint applications:
+
+\begin{enumerate}
+    \item \textbf{Production Dependencies (\texttt{dependencies}):} 
+    This is the standard directional edge described in graph theory. If package $A$ declares a production dependency on package $B$, the resolver must ensure $B$ is present in the solution set. These edges are \textit{transitive}: if the root depends on $A$, and $A$ depends on $B$, the resolver must traverse from Root to $A$ to $B$.
+    
+    \item \textbf{Development Dependencies (\texttt{devDependencies}):} 
+    These dependencies define tooling required for testing or building a package but are not required for its runtime execution. Mathematically, these edges are \textit{non-transitive}. The constraints declared in \texttt{devDependencies} are only evaluated for the root node of the dependency tree (the project being developed). For any node at depth $d > 0$ in the graph, \texttt{devDependencies} are ignored (pruned) during traversal.
+    
+    \item \textbf{Peer Dependencies (\texttt{peerDependencies}):} 
+    Unlike production dependencies, which instruct the resolver to \textit{fetch} a package, peer dependencies act as a validation check against the existing hierarchy. If package $A$ lists package $B$ as a peer dependency, it asserts that $B$ must already exist in the host context (typically the parent or root package) that imports $A$. 
+    
+    This introduces a \textit{horizontal} or \textit{contextual constraint} rather than a vertical one. The resolver does not necessarily install the peer dependency as a child of $A$; rather, it verifies that the version of $B$ selected for the project satisfies $A$'s requirement. Failure to satisfy a peer dependency often results in a "missing peer" warning or an invalid dependency tree state.
+\end{enumerate}
+
+\clearpage

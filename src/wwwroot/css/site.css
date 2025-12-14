@@ -1,0 +1,269 @@
+/**
+ * Styles for Blazor dependency graph viewer with MudBlazor
+ */
+
+#blazor-error-ui {
+    background: lightyellow;
+    bottom: 0;
+    box-shadow: 0 -1px 5px rgba(0, 0, 0, 0.2);
+    display: none;
+    left: 0;
+    padding: 0.6rem 1.25rem 0.7rem 1.25rem;
+    position: fixed;
+    width: 100%;
+    z-index: 1000;
+}
+
+#blazor-error-ui .dismiss {
+    cursor: pointer;
+    position: absolute;
+    right: 0.75rem;
+    top: 0.5rem;
+}
+
+body {
+    font-family: Roboto, -apple-system, BlinkMacSystemFont, 'Segoe UI', Oxygen, Ubuntu, Cantarell, sans-serif;
+    background: linear-gradient(135deg, #0a1929 0%, #1a2332 50%, #0d47a1 100%) !important;
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    background: #0a1929 !important;
+}
+
+/* Override MudBlazor layout backgrounds */
+.mud-layout {
+    background: transparent !important;
+}
+
+/* Graph container styles */
+#network {
+    width: 100%;
+    height: 600px;
+    border: 1px solid #1e3a5f;
+    border-radius: 4px;
+    background: #0a1929;
+}
+
+#network.fullscreen,
+#versionNetwork.fullscreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 9999;
+    border-radius: 0;
+    margin: 0;
+}
+
+#versionNetwork {
+    background: #0a1929;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    height: 600px;
+    position: relative;
+}
+
+/* MudBlazor component overrides */
+.mud-paper {
+    background-color: #0d1b2a !important;
+    color: #e3f2fd !important;
+}
+
+.mud-container {
+    background-color: transparent !important;
+}
+
+.mud-main-content {
+    background-color: transparent !important;
+}
+
+.mud-drawer {
+    background-color: #0a1929 !important;
+}
+
+.mud-appbar {
+    background-color: #0a1929 !important;
+    color: #e3f2fd !important;
+}
+
+/* Override any MudBlazor primary color backgrounds */
+.mud-theme-primary {
+    background-color: #1976d2 !important;
+}
+
+/* Ensure layout backgrounds are transparent */
+#app, .mud-layout, .mud-main-content, .mud-container {
+    background: transparent !important;
+}
+
+/* MudBlazor table overrides */
+.mud-table {
+    background-color: #0d1b2a;
+    color: #e3f2fd;
+}
+
+.mud-table-root {
+    width: 100%;
+}
+
+.mud-table th {
+    font-weight: bold;
+    background-color: #1e3a5f;
+    color: #64b5f6;
+}
+
+.mud-table td {
+    color: #e3f2fd;
+}
+
+.mud-table-cell {
+    color: #e3f2fd;
+}
+
+/* MudBlazor input overrides */
+.mud-input {
+    color: #e3f2fd !important;
+}
+
+.mud-input-slot {
+    color: #e3f2fd !important;
+}
+
+.mud-input-root {
+    color: #e3f2fd !important;
+}
+
+.mud-input-label {
+    color: #90caf9 !important;
+}
+
+.mud-input-helper-text {
+    color: #b0bec5 !important;
+}
+
+/* MudBlazor text overrides */
+.mud-typography {
+    color: #e3f2fd !important;
+}
+
+.mud-text {
+    color: #e3f2fd !important;
+}
+
+.fullscreen-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: #1976d2;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 15px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    z-index: 1000;
+    transition: all 0.3s;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.fullscreen-btn:hover {
+    background: #1565c0;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(25, 118, 210, 0.6);
+}
+
+.primary-btn {
+    background: #1976d2;
+    color: white;
+}
+
+.primary-btn:hover {
+    background: #1565c0;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(25, 118, 210, 0.6);
+}
+
+.primary-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.secondary-btn {
+    background: #1e3a5f;
+    color: #90caf9;
+}
+
+.secondary-btn:hover {
+    background: #2c4c73;
+}
+
+.success-btn {
+    background: #48bb78;
+    color: white;
+}
+
+.success-btn:hover {
+    background: #38a169;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(72, 187, 120, 0.4);
+}
+
+.error-message {
+    background: #ff4444;
+    color: white;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    display: none;
+}
+
+.error-message.active {
+    display: block;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.versions-table {
+    overflow-x: auto;
+}
+
+.versions-table table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+.versions-table th,
+.versions-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #1e3a5f;
+    color: #e3f2fd;
+}
+
+.versions-table th {
+    background: #1e3a5f;
+    font-weight: 600;
+    color: #64b5f6;
+}
+
+.versions-table tr:hover {
+    background: #0d1b2a;
+}
+
+.root-package {
+    background-color: #1565c0 !important;
+    font-weight: 600;
+}
+
+.root-package:hover {
+    background-color: #1976d2 !important;
+}

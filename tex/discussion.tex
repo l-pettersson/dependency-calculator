@@ -1,0 +1,40 @@
+\section{Discussion} \label{sec:discussion}
+
+The results presented in Section \ref{sec:results} demonstrate that Monte Carlo Tree Search is a viable and effective strategy for solving the npm dependency resolution problem. In this section, we analyze the theoretical implications of this approach, specifically regarding how it addresses the dual challenges of satisfiability and optimization, its algorithmic complexity, and its convergence properties.
+
+\subsection{Methodological Efficacy}
+The core contribution of this work is the reformulation of dependency resolution from a standard Constraint Satisfaction Problem (CSP) to a stochastic optimization problem. Traditional approaches typically fall into two distinct categories:
+\begin{enumerate}
+    \item \textbf{Greedy Algorithms:} These select the latest version at every step. While computationally efficient, they fail catastrophically in "Diamond Dependency" scenarios where a transitive choice necessitates an older version of a shared package.
+    \item \textbf{SAT Solvers:} These guarantee a valid solution if one exists but lack an inherent mechanism to prioritize recency. A pure SAT solver is as likely to return version 1.0.0 as it is to return 5.0.0, provided both satisfy constraints.
+\end{enumerate}
+
+Our MCTS implementation effectively bridges this gap. By encoding the recency metric into the Reward function \eqref{eq:reward}, we convert the qualitative preference for new software into a quantitative gradient that guides the search.
+
+The sensitivity analysis of the simulation bias ($\lambda$) provides a crucial insight into the topology of the npm ecosystem. The distinct performance degradation observed at high $\lambda$ values (Greedy) confirms that the dependency graph is not monotonic; "newer" does not always imply "compatible." Conversely, the poor performance at low $\lambda$ values (Random) confirms that the search space is too vast for unguided exploration. The experimentally derived optimum of $\lambda \approx 1.5$ suggests that dependency resolution requires a hybrid strategy: a strong heuristic bias to drive optimization, coupled with sufficient entropic exploration to bypass local constraint optima (breaking changes).
+
+\subsection{Computational Complexity}
+The search space for dependency resolution is combinatorial. Let $N$ be the number of packages in the dependency closure, and let $b$ be the average number of available versions per package. The total state space size is $O(b^N)$. Since checking satisfiability is NP-complete, an exhaustive search is intractable.
+
+The computational complexity of the MCTS approach is nominally determined by the iteration budget $k$ and the rollout cost. However, our experimental results regarding `MaxDepth` reveal a counter-intuitive efficiency characteristic. We observed that increasing the tree depth limit actually \textit{decreased} execution time.
+
+This implies that the UCT selection policy \eqref{eq:uct} is significantly more computationally efficient than the stochastic rollout. By allowing the tree to grow deeper, the algorithm shifts the burden of resolution from the "blind" simulation phase to the "informed" selection phase. The UCT policy effectively prunes the search space by locking in variables that have high statistical promise, whereas a shallow tree forces the solver to rely on random sampling to resolve complex, deep constraints.
+
+Consequently, while the worst-case complexity remains exponential, the \textit{effective} complexity for practical npm trees is managed by the "Effective Horizon." The sharp performance cliff observed when `MaxSimulationDepth` $> 15$ indicates that constraint propagation in this domain exhibits strong locality of reference; conflicts are typically resolved within a shallow radius of the root, allowing the solver to prune vast sections of the theoretical search space.
+
+\subsection{Convergence}
+Convergence in this context refers to two distinct properties: converging to a \textit{valid} solution and converging to the \textit{optimal} (most recent) solution.
+
+The Upper Confidence Bound (UCT) formula guarantees that as $k \to \infty$, the probability of exploring the optimal branch approaches 1. The exploration term ($C_p \sqrt{\ln n / n_j}$) prevents the solver from getting stuck in local optima (e.g., a valid but old set of versions).
+
+In our implementation, convergence is accelerated by the heuristic rollout. By weighting the random simulation toward newer versions, we inject domain knowledge that steers the solver toward high-reward states faster than a uniform random walk. However, this creates a tension in "Adversarial" scenarios (e.g., legacy projects). The solver must "unlearn" its bias toward new versions through repeated constraint violations (zero rewards) before the UCT exploration term forces it to consider the older, valid versions. This unlearning curve explains the linear scaling of execution time with graph complexity: larger graphs increase the probability of encountering a "breaking change" deep in the tree, requiring more iterations to overcome the heuristic bias.
+
+\subsection{Correctness}
+We distinguish between \textit{soundness} (if a solution is returned, is it valid?) and \textit{completeness} (if a solution exists, will it be found?).
+
+\textbf{Soundness:} The implementation guarantees soundness through the expansion and reward mechanisms. A node is only expanded if the version satisfies the immediate parent's constraints \eqref{eq:parent_contraint}, and a positive reward is only generated if the simulation reaches a state with zero pending dependencies and zero conflicts. Therefore, any solution returned with $R > 0$ is mathematically guaranteed to be a valid configuration of the dependency graph.
+
+\textbf{Completeness:} As a stochastic method, MCTS is probabilistically complete but not deterministically complete within a bounded timeframe. Given infinite iterations, it will traverse every valid state. However, under a finite iteration cap, it is possible for the solver to fail to find a valid configuration for highly constrained graphs that a deterministic CDCL (Conflict-Driven Clause Learning) solver might find. This is a deliberate trade-off: we sacrifice the guarantee of finding \textit{obscure} solutions in exchange for the ability to reliably find and optimize \textit{standard} solutions.
+\end{document}
+
+\clearpage

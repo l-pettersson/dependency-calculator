@@ -1,0 +1,76 @@
+@inherits LayoutComponentBase
+@using MudBlazor
+
+<MudThemeProvider Theme="_theme" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="1">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" />
+        <MudText Typo="Typo.h6">📦 NPM Package Analyzer</MudText>
+        <MudSpacer />
+    </MudAppBar>
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="mt-4">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private MudTheme _theme = new MudTheme()
+    {
+        PaletteLight = new PaletteLight()
+        {
+            Primary = "#1976d2",
+            Secondary = "#64b5f6",
+            AppbarBackground = "#0a1929",
+            AppbarText = "#e3f2fd",
+            Background = "#0d1b2a",
+            BackgroundGray = "#1e3a5f",
+            Surface = "#0d1b2a",
+            DrawerBackground = "#0a1929",
+            DrawerText = "#e3f2fd",
+            DrawerIcon = "#90caf9",
+            TextPrimary = "#e3f2fd",
+            TextSecondary = "#b0bec5",
+            ActionDefault = "#90caf9",
+            ActionDisabled = "#546e7a",
+            ActionDisabledBackground = "#263238",
+            Divider = "#1e3a5f",
+            DividerLight = "#263238",
+            TableLines = "#1e3a5f",
+            TableStriped = "#0a1929",
+            LinesDefault = "#1e3a5f",
+            LinesInputs = "#1e3a5f",
+            TextDisabled = "#78909c"
+        },
+        PaletteDark = new PaletteDark()
+        {
+            Primary = "#1976d2",
+            Secondary = "#64b5f6",
+            AppbarBackground = "#0a1929",
+            AppbarText = "#e3f2fd",
+            Background = "#0d1b2a",
+            BackgroundGray = "#1e3a5f",
+            Surface = "#0d1b2a",
+            DrawerBackground = "#0a1929",
+            DrawerText = "#e3f2fd",
+            DrawerIcon = "#90caf9",
+            TextPrimary = "#e3f2fd",
+            TextSecondary = "#b0bec5",
+            ActionDefault = "#90caf9",
+            ActionDisabled = "#546e7a",
+            ActionDisabledBackground = "#263238",
+            Divider = "#1e3a5f",
+            DividerLight = "#263238",
+            TableLines = "#1e3a5f",
+            TableStriped = "#0a1929",
+            LinesDefault = "#1e3a5f",
+            LinesInputs = "#1e3a5f",
+            TextDisabled = "#78909c"
+        }
+    };
+}

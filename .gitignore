@@ -1,0 +1,15 @@
+**/bin
+**/obj
+**/.npmrc
+cve_cache.db
+cve_cache.db-shm
+cve_cache.db-wal
+npm_cache.db
+npm_cache.db-shm
+npm_cache.db-wal
+node_modules/
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz

@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  dependency-calculator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dependency-calculator
+    ports:
+      - "5000:8080"
+    volumes:
+      # Mount volume for SQLite databases to persist data
+      - ./data:/app/data
+      # Mount .npmrc if it exists (optional)
+      - ./.npmrc:/app/.npmrc:ro
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+      - API_BASE_URL=http://dependency-calculator:8080
+      # Configure database paths to use the /app/data directory
+      - CVE_CACHE_DB_PATH=/app/data/cve_cache.db
+      - NPM_CACHE_DB_PATH=/app/data/npm_cache.db
+    restart: unless-stopped
+    networks:
+      - dependency-calculator-network
+
+networks:
+  dependency-calculator-network:
+    driver: bridge
+
+volumes:
+  data:
+    driver: local

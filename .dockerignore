@@ -1,0 +1,38 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Build results
+**/bin/
+**/obj/
+**/out/
+
+# VS Code
+.vscode/
+
+# User-specific files
+*.user
+*.userosscache
+*.sln.docstates
+
+# Database files (will be mounted as volumes)
+*.db
+*.db-shm
+*.db-wal
+
+# Node modules if any
+node_modules/
+
+# Documentation
+*.md
+README.md
+
+# Docker files
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Cache and temp files
+*.cache
+*.log

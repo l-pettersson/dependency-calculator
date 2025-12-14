@@ -1,0 +1,12 @@
+\section{Introduction}
+
+The paradigm of modern software engineering has shifted definitively toward modular architecture. Rather than writing monolithic applications from scratch, developers rely heavily on open-source libraries and frameworks to accelerate development and ensure robustness. Nowhere is this more evident than in the JavaScript ecosystem, where the Node Package Manager (npm) hosts the world's largest software registry. As of 2025, the registry contains millions of packages, each with its own history of versions and a complex web of dependencies.
+
+Central to the stability of this ecosystem is the concept of Semantic Versioning (SemVer). This specification allows package authors to convey the significance of changes—breaking changes, new features, or patch fixes—through a version string (e.g., \texttt{MAJOR.MINOR.PATCH}). While SemVer provides a protocol for compatibility, the practical task of resolving a dependency tree is computationally non-trivial. When a project declares dependencies, those dependencies declare their own transitive dependencies, often with conflicting version constraints for the same shared package.
+
+The problem of dependency resolution is formally analogous to the Boolean Satisfiability Problem (SAT) and, in general cases, is known to be NP-complete. A resolver must traverse the graph of requirements and select a set of concrete package versions such that no constraint is violated. However, in the context of modern web development, mere satisfiability is often insufficient. Developers prioritize recency; they desire the latest possible versions of packages to benefit from security patches, performance improvements, and recent features, provided those versions do not break the build.
+
+Consequently, the challenge transforms from a pure Constraint Satisfaction Problem (CSP) into a Constraint Optimization Problem (COP). The objective is not merely to find \textit{any} valid configuration of the dependency graph, but to identify the \textit{optimal} valid configuration, where optimality is defined by a heuristic favoring the highest lexicographical version numbers.
+
+
+\clearpage

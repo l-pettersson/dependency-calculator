@@ -1,0 +1,16 @@
+# Example .npmrc with environment variables
+# You can use ${ENV_VAR} or %ENV_VAR% syntax
+
+# Option 1: Using hardcoded values (current setup)
+registry=https://registry.npmjs.com/
+always-auth=true
+//registry.npmjs.com/:username=
+//registry.npmjs.com/:_password=
+strict-ssl=false
+
+# Option 2: Using environment variables (recommended for security)
+# registry=${NPM_REGISTRY_URL}
+# always-auth=true
+# //${NPM_REGISTRY_HOST}/:username=${NPM_USERNAME}
+# //${NPM_REGISTRY_HOST}/:_password=${NPM_PASSWORD}
+# strict-ssl=${NPM_STRICT_SSL}

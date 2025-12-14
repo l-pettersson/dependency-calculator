@@ -1,0 +1,83 @@
+\section{Implementation} \label{sec:implementation}
+
+To solve the constraint optimization problem described in Section \ref{sec:formal_statement}, we employ the Monte Carlo Tree Search (MCTS) algorithm. MCTS is particularly well-suited for this domain because the search space of dependency graphs is vast and sparse; valid configurations are rare relative to the total number of permutations, and we require a method to effectively balance exploration (finding any valid graph) with exploitation (finding the graph with the latest versions).
+
+We define a search tree where the root node $s_0$ represents the initial state with only the root project requirements. Each edge represents the assignment of a specific version to a package, effectively "locking in" a truth value for one variable $x_{p,v}$ and resolving one logical sentence.
+
+The algorithm proceeds iteratively through four phases: Selection, Expansion, Simulation, and Backpropagation.
+
+\subsection{Selection}
+In the selection phase, the algorithm traverses the existing tree from the root to a leaf node to identify the most promising path for investigation. At each node $s$, we select the child node $s'$ that maximizes the Upper Confidence Bound for Trees (UCT). This balances the estimated quality of a version choice against the uncertainty of unexplored paths.
+
+The UCT value for a child node $j$ is calculated as:
+\begin{equation}\label{eq:uct}
+    UCT_j = \bar{X}_j + C_p \sqrt{\frac{\ln n}{n_j}}
+\end{equation}
+Where:
+\begin{itemize}
+    \item $\bar{X}_j$ is the average reward observed in previous simulations passing through node $j$. In our context, this reward correlates to the recency of the resulting dependency tree.
+    \item $n$ is the total number of visits to the parent node.
+    \item $n_j$ is the number of visits to child node $j$.
+    \item $C_p$ is the exploration constant, tuned to control the algorithm's tendency to explore older or less-tested versions versus exploiting known valid configurations.
+\end{itemize}
+The traversal continues until a leaf node (a state with unexpanded valid moves) is reached.
+
+\subsection{Expansion}
+Upon reaching a leaf node $s_L$ that represents a partial assignment, we identify the next unsatisfied logical sentence in the dependency queue. Let the next required package be $q$ with constraint range $r$.
+
+The expansion step generates child nodes for every version $u \in \mathcal{V}_q$ such that $u \in r$. This step is critical as it enforces the satisfiability constraints defined in \eqref{eq:global_constraints}. We prune the search space immediately by only creating nodes for versions that satisfy the intersection of all currently active constraints on $q$. If no versions satisfy the constraint, the node is marked as a "dead end" (conflict), and the algorithm terminates this branch.
+
+\subsection{Simulation (Rollout)}
+From the newly expanded node, we perform a simulation to estimate the potential value of the current partial assignment. The simulation effectively "fast-forwards" the resolution process to determine if the current path can lead to a complete, valid dependency graph.
+
+Unlike pure random walks used in standard MCTS, we employ a heuristic-guided rollout. The simulation selects versions for remaining dependencies using a biased stochastic policy that favors the latest versions while allowing non-greedy exploration.
+
+The process proceeds as follows:
+\begin{enumerate}
+    \item \textbf{Identify Pending:} Retrieve the queue of unsatisfied dependencies for the current graph state.
+    \item \textbf{Constraint Intersection:} For the next target package, calculate the set of valid versions $\mathcal{V}_{valid}$ that satisfy all currently active constraints.
+    \item \textbf{Probabilistic Selection:} We select a version $v \in \mathcal{V}_{valid}$ using a Softmax probability distribution. Let $r(v)$ be a scoring function where the latest version has the highest rank. The probability $P(v)$ of selecting version $v$ is given by:
+    
+    \begin{equation}\label{eq:rollout}
+        P(v) = \frac{\exp(\lambda \cdot r(v))}{\sum_{u \in \mathcal{V}_{valid}} \exp(\lambda \cdot r(u))}
+    \end{equation}
+    
+    Here, $\lambda$ is a tunable temperature parameter that controls the "greediness" of the simulation.
+    \begin{itemize}
+        \item As $\lambda \to \infty$, the selection becomes purely greedy (always picking the latest).
+        \item As $\lambda \to 0$, the selection approaches a uniform random distribution.
+    \end{itemize}
+    
+    \item \textbf{Recursion:} Apply the selection, update the constraint propagation, and repeat until the dependency queue is empty (success) or a contradiction is found (failure).
+\end{enumerate}
+
+\subsection{Backpropagation}
+The final phase of the MCTS iteration updates the tree statistics based on the outcome of the simulation. This process involves calculating the reward for the specific simulation path and propagating that value up the tree to the root.
+
+\subsubsection{Reward Calculation}
+The reward calculation strictly enforces graph completeness and validity. Given the terminal state $\sigma$ reached by the simulation, the reward scalar $R$ is determined as follows:
+
+First, we verify structural integrity. If the state $\sigma$ contains any constraint violations (conflicting versions) or if the set of pending dependencies is non-empty (incomplete graph), the reward is strictly zero:
+\begin{equation}
+    R = 0
+\end{equation}
+
+If the graph is both valid and complete, we compute $R$ as the average recency score of all resolved packages. Using the ranking logic defined in the Optimization Metric, where $idx(v)$ is the zero-based index of the selected version and $N_p$ is the total version count for package $p$:
+
+\begin{equation}\label{eq:reward}
+    R = \frac{1}{|\sigma|} \sum_{p \in \sigma} \left( 1 - \frac{idx(\sigma(p))}{N_p} \right)
+\end{equation}
+
+This results in a normalized value $R \in (0, 1]$, where a value of $1.0$ indicates a solution composed entirely of the latest available versions, and lower values indicate reliance on older package versions to satisfy constraints.
+
+\subsubsection{Tree Update}
+The calculated reward $R$ is propagated recursively from the leaf node $s_L$ back to the root $s_0$. For every node $s_i$ in the path:
+\begin{equation}
+    N(s_i) \leftarrow N(s_i) + 1
+\end{equation}
+\begin{equation}
+    Q(s_i) \leftarrow Q(s_i) + R
+\end{equation}
+Where $N$ is the visit count and $Q$ is the accumulated reward. This accumulation directs future Selection phases toward branches that consistently yield complete, high-recency dependency graphs.
+
+\clearpage

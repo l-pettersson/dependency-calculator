@@ -1,0 +1,850 @@
+@page "/"
+@using Microsoft.AspNetCore.Components.Forms
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+@inject ISnackbar Snackbar
+
+<MudContainer MaxWidth="MaxWidth.ExtraExtraLarge">
+    <MudPaper Class="pa-4 ma-2">
+        <MudText Typo="Typo.h4" Class="mb-4">Add NPM Packages</MudText>
+        
+        @foreach (var package in _packages)
+        {
+            <MudGrid Class="mb-2">
+                <MudItem xs="12" sm="5">
+                    <MudTextField @bind-Value="package.Name" 
+                                  Label="Package name" 
+                                  Placeholder="e.g., express"
+                                  Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" sm="5">
+                    <MudTextField @bind-Value="package.Version" 
+                                  Label="Version" 
+                                  Placeholder="e.g., 4.18.2"
+                                  Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" sm="2" Class="d-flex align-center">
+                    <MudButton Color="Color.Error" 
+                               Variant="Variant.Filled" 
+                               OnClick="() => RemovePackage(package)"
+                               Disabled="@(_packages.Count == 1)"
+                               FullWidth="true">
+                        Remove
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+        }
+
+        <MudGrid Class="mt-4 mb-3">
+            <MudItem xs="12" sm="6">
+                <MudNumericField @bind-Value="_maxDepth" 
+                                 Label="Max Recursion Depth" 
+                                 Min="1" Max="10"
+                                 Variant="Variant.Outlined"
+                                 HelperText="1-10, default: 2" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudNumericField @bind-Value="_maxIterations" 
+                                 Label="Iterations" 
+                                 Min="1" Max="10000"
+                                 Variant="Variant.Outlined"
+                                 HelperText="1-10000, default: 1000" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudNumericField @bind-Value="_maxSimulationDepth" 
+                                 Label="Simulation Depth" 
+                                 Min="1" Max="10"
+                                 Variant="Variant.Outlined"
+                                 HelperText="1-10, default: 5" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudNumericField @bind-Value="_maxCompareVersion" 
+                                 Label="Max Compare Version" 
+                                 Min="1" Max="100"
+                                 Variant="Variant.Outlined"
+                                 HelperText="1-100, default: 20" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudNumericField @bind-Value="_lambda" 
+                                 Label="Lambda" 
+                                 Min="-100" Max="100"
+                                 Variant="Variant.Outlined"
+                                 HelperText="-100-100, default: 2" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudSelect @bind-Value="_cvePreset" 
+                           Label="CVE Threshold Preset" 
+                           Variant="Variant.Outlined"
+                           HelperText="Quick preset or set custom values below"
+                           Clearable="true"
+                           T="string">
+                    <MudSelectItem Value="@((string?)null)">None (No CVE filtering)</MudSelectItem>
+                    <MudSelectItem Value="@("LOW")">Low or higher (0 of any severity)</MudSelectItem>
+                    <MudSelectItem Value="@("MEDIUM")">Medium or higher (0 Critical/High/Medium)</MudSelectItem>
+                    <MudSelectItem Value="@("HIGH")">High or higher (0 Critical/High)</MudSelectItem>
+                    <MudSelectItem Value="@("CRITICAL")">Critical only (0 Critical)</MudSelectItem>
+                    <MudSelectItem Value="@("CUSTOM")">Custom (configure below)</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            
+            @if (_cvePreset == "CUSTOM")
+            {
+                <MudItem xs="12">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Custom CVE Threshold (Max allowed count per severity)</MudText>
+                </MudItem>
+                <MudItem xs="12" sm="3">
+                    <MudNumericField @bind-Value="_cveCriticalCount" 
+                                     Label="Max Critical CVEs" 
+                                     Min="0" Max="100"
+                                     Variant="Variant.Outlined"
+                                     HelperText="Default: 0" />
+                </MudItem>
+                <MudItem xs="12" sm="3">
+                    <MudNumericField @bind-Value="_cveHighCount" 
+                                     Label="Max High CVEs" 
+                                     Min="0" Max="100"
+                                     Variant="Variant.Outlined"
+                                     HelperText="Default: 0" />
+                </MudItem>
+                <MudItem xs="12" sm="3">
+                    <MudNumericField @bind-Value="_cveMediumCount" 
+                                     Label="Max Medium CVEs" 
+                                     Min="0" Max="100"
+                                     Variant="Variant.Outlined"
+                                     HelperText="Default: 0" />
+                </MudItem>
+                <MudItem xs="12" sm="3">
+                    <MudNumericField @bind-Value="_cveLowCount" 
+                                     Label="Max Low CVEs" 
+                                     Min="0" Max="100"
+                                     Variant="Variant.Outlined"
+                                     HelperText="Default: 0" />
+                </MudItem>
+            }
+            
+            <MudItem xs="12">
+                <MudSwitch @bind-Value="_initVersions" 
+                           Label="InitVersions" 
+                           Color="Color.Primary"
+                           T="bool" />
+            </MudItem>
+        </MudGrid>
+
+        <MudGrid Class="mt-2">
+            <MudItem xs="12" sm="4">
+                <MudButton Color="Color.Secondary" 
+                           Variant="Variant.Filled" 
+                           OnClick="AddPackage"
+                           FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.Add">
+                    Add Another Package
+                </MudButton>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudButton Color="Color.Secondary" 
+                           Variant="Variant.Filled" 
+                           OnClick="ClearAll"
+                           FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.Clear">
+                    Clear All
+                </MudButton>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudButton Color="Color.Info" 
+                           Variant="Variant.Filled" 
+                           OnClick="LoadExample"
+                           FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.Star">
+                    ✨ Load Example
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+
+        <MudGrid Class="mt-2">
+            <MudItem xs="12" sm="6">
+                <MudFileUpload T="IBrowserFile" Accept=".json" OnFilesChanged="LoadDependenciesFromFile">
+                    <ActivatorContent>
+                        <MudButton Color="Color.Secondary"
+                                   Variant="Variant.Outlined"
+                                   FullWidth="true"
+                                   StartIcon="@Icons.Material.Filled.Upload"
+                                   HtmlTag="label">
+                            📁 Upload Dependencies (package.json)
+                        </MudButton>
+                    </ActivatorContent>
+                </MudFileUpload>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudFileUpload T="IBrowserFile" Accept=".json" OnFilesChanged="LoadDevDependenciesFromFile">
+                    <ActivatorContent>
+                        <MudButton Color="Color.Secondary"
+                                   Variant="Variant.Outlined"
+                                   FullWidth="true"
+                                   StartIcon="@Icons.Material.Filled.Upload"
+                                   HtmlTag="label">
+                            📁 Upload DevDependencies (package.json)
+                        </MudButton>
+                    </ActivatorContent>
+                </MudFileUpload>
+            </MudItem>
+        </MudGrid>
+
+        <MudDivider Class="my-4" />
+
+        <MudGrid>
+            <MudItem xs="12" md="4">
+                <MudButton Color="Color.Primary" 
+                           Variant="Variant.Filled" 
+                           OnClick="() => FetchRecursiveDependencies(DependencyType.Dependencies)"
+                           FullWidth="true"
+                           Disabled="_isLoading"
+                           StartIcon="@Icons.Material.Filled.AccountTree">
+                    🔄 Visualize Dependencies
+                </MudButton>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudButton Color="Color.Primary" 
+                           Variant="Variant.Filled" 
+                           OnClick="() => FetchRecursiveDependencies(DependencyType.DevDependencies)"
+                           FullWidth="true"
+                           Disabled="_isLoading"
+                           StartIcon="@Icons.Material.Filled.AccountTree">
+                    🔗 Visualize Dev Dependencies
+                </MudButton>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudButton Color="Color.Primary" 
+                           Variant="Variant.Filled" 
+                           OnClick="() => FetchRecursiveDependencies(DependencyType.PeerDependencies)"
+                           FullWidth="true"
+                           Disabled="_isLoading"
+                           StartIcon="@Icons.Material.Filled.AccountTree">
+                    🔗 Visualize Peer Dependencies
+                </MudButton>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudButton Color="Color.Success" 
+                           Variant="Variant.Filled" 
+                           OnClick="() => CalculateOptimalVersions(DependencyType.Dependencies)"
+                           FullWidth="true"
+                           Disabled="_isLoading || _isCalculating"
+                           StartIcon="@Icons.Material.Filled.Calculate">
+                    @if (_isCalculating)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        <span>Calculating...</span>
+                    }
+                    else
+                    {
+                        <span>🎯 Calculate Optimal Versions</span>
+                    }
+                </MudButton>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudButton Color="Color.Success" 
+                           Variant="Variant.Filled" 
+                           OnClick="() => CalculateOptimalVersions(DependencyType.DevDependencies)"
+                           FullWidth="true"
+                           Disabled="_isLoading || _isCalculating"
+                           StartIcon="@Icons.Material.Filled.Calculate">
+                    @if (_isCalculating)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        <span>Calculating...</span>
+                    }
+                    else
+                    {
+                        <span>🎯 Calculate Optimal Dev Versions</span>
+                    }
+                </MudButton>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudButton Color="Color.Success" 
+                           Variant="Variant.Filled" 
+                           OnClick="() => CalculateOptimalVersions(DependencyType.PeerDependencies)"
+                           FullWidth="true"
+                           Disabled="_isLoading || _isCalculating"
+                           StartIcon="@Icons.Material.Filled.Calculate">
+                    @if (_isCalculating)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        <span>Calculating...</span>
+                    }
+                    else
+                    {
+                        <span>🎯 Calculate Optimal Peer Versions</span>
+                    }
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    @if (_showLegend)
+    {
+        <MudPaper Class="pa-4 ma-2 mt-4">
+            <MudText Typo="Typo.h6" Class="mb-3"><strong>Legend:</strong></MudText>
+            <MudList T="string">
+                <MudListItem T="string" Icon="@Icons.Material.Filled.Square" IconColor="Color.Primary">
+                    Root Package (You selected)
+                </MudListItem>
+                <MudListItem T="string" Icon="@Icons.Material.Filled.Square" IconColor="Color.Success">
+                    Dependency (Found in NPM)
+                </MudListItem>
+                <MudListItem T="string" Icon="@Icons.Material.Filled.Square" IconColor="Color.Warning">
+                    ⚠️ Max Depth Reached
+                </MudListItem>
+                <MudListItem T="string" Icon="@Icons.Material.Filled.Square" IconColor="Color.Error">
+                    ⚠️ Not Found in Repository
+                </MudListItem>
+            </MudList>
+        </MudPaper>
+    }
+
+    @if (_showStats)
+    {
+        <MudPaper Class="pa-4 ma-2 mt-4">
+            <MudGrid>
+                <MudItem xs="12" sm="6" md="2">
+                    <MudText Typo="Typo.h4" Align="Align.Center">@_stats.NodeCount</MudText>
+                    <MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Secondary">Total Packages</MudText>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="2">
+                    <MudText Typo="Typo.h4" Align="Align.Center">@_stats.EdgeCount</MudText>
+                    <MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Secondary">Dependencies</MudText>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="2">
+                    <MudText Typo="Typo.h4" Align="Align.Center">@_stats.RootCount</MudText>
+                    <MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Secondary">Root Packages</MudText>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudText Typo="Typo.h4" Align="Align.Center" Color="Color.Warning">@_stats.MaxDepthCount</MudText>
+                    <MudText Typo="Typo.body2" Align="Align.Center">⚠️ Max Depth</MudText>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudText Typo="Typo.h4" Align="Align.Center" Color="Color.Error">@_stats.NotFoundCount</MudText>
+                    <MudText Typo="Typo.body2" Align="Align.Center">⚠️ Not Found</MudText>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+    }
+
+    @if (_showNetworkGraph)
+    {
+        <MudPaper Class="pa-4 ma-2 mt-4">
+            <MudText Typo="Typo.h5" Align="Align.Center" Class="mb-4">📊 Dependency Graph</MudText>
+            @if (_isLoading)
+            {
+                <div class="d-flex justify-center align-center pa-8">
+                    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+                    <MudText Class="ml-4">Fetching dependency data...</MudText>
+                </div>
+            }
+            else
+            {
+                <div id="network" style="width: 100%; height: 600px; border: 1px solid #1e3a5f;"></div>
+            }
+        </MudPaper>
+
+        <MudPaper Class="pa-4 ma-2 mt-4">
+            <MudText Typo="Typo.h5" Align="Align.Center" Class="mb-4">📊 Version Graph</MudText>
+            @if (_isLoading)
+            {
+                <div class="d-flex justify-center align-center pa-8">
+                    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+                    <MudText Class="ml-4">Fetching dependency data...</MudText>
+                </div>
+            }
+            else
+            {
+                <div id="versionNetwork" style="width: 100%; height: 600px; border: 1px solid #1e3a5f;"></div>
+            }
+        </MudPaper>
+    }
+
+    @if (_showOptimalVersions)
+    {
+        <MudPaper Class="pa-4 ma-2 mt-4">
+            <div class="d-flex justify-space-between align-center mb-4">
+                <MudText Typo="Typo.h5" Align="Align.Center" Class="flex-grow-1">🎯 Optimal Versions (MCTS Result)</MudText>
+                @if (!string.IsNullOrEmpty(_optimalVersionsHtml) && _resolvedVersions.Any())
+                {
+                    <MudButton Color="Color.Secondary" 
+                               Variant="Variant.Filled" 
+                               OnClick="ExportOptimalVersionsToJson"
+                               StartIcon="@Icons.Material.Filled.Download">
+                        📥 Export to JSON
+                    </MudButton>
+                }
+            </div>
+            @if (_isCalculating)
+            {
+                <div class="d-flex justify-center align-center pa-8">
+                    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+                    <MudText Class="ml-4">Calculating optimal versions...</MudText>
+                </div>
+            }
+            else if (!string.IsNullOrEmpty(_optimalVersionsHtml))
+            {
+                <div>
+                    @((MarkupString)_optimalVersionsHtml)
+                </div>
+            }
+        </MudPaper>
+    }
+
+    @if (!string.IsNullOrEmpty(_errorMessage) || !string.IsNullOrEmpty(_warningMessage))
+    {
+        <MudPaper Class="pa-4 ma-2 mt-4">
+            @if (!string.IsNullOrEmpty(_errorMessage))
+            {
+                <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="mb-4">
+                    <MudText Typo="Typo.h6" Class="mb-2">❌ Calculation Failed</MudText>
+                    <div style="max-height: 400px; overflow-y: auto; background-color: rgba(0,0,0,0.1); padding: 12px; border-radius: 4px;">
+                        <MudText Typo="Typo.body2" Style="white-space: pre-wrap; font-family: 'Courier New', monospace; font-size: 0.875rem;">@_errorMessage</MudText>
+                    </div>
+                    <MudButton Class="mt-2" 
+                               Variant="Variant.Text" 
+                               StartIcon="@Icons.Material.Filled.ContentCopy"
+                               OnClick="() => CopyToClipboard(_errorMessage)"
+                               Color="Color.Default">
+                        Copy Error Details
+                    </MudButton>
+                </MudAlert>
+            }
+            @if (!string.IsNullOrEmpty(_warningMessage))
+            {
+                <MudAlert Severity="Severity.Warning" Variant="Variant.Filled">
+                    <MudText Typo="Typo.h6" Class="mb-2">⚠️ Calculation Warning</MudText>
+                    <div style="max-height: 400px; overflow-y: auto; background-color: rgba(0,0,0,0.1); padding: 12px; border-radius: 4px;">
+                        <MudText Typo="Typo.body2" Style="white-space: pre-wrap; font-family: 'Courier New', monospace; font-size: 0.875rem;">@_warningMessage</MudText>
+                    </div>
+                    <MudButton Class="mt-2" 
+                               Variant="Variant.Text" 
+                               StartIcon="@Icons.Material.Filled.ContentCopy"
+                               OnClick="() => CopyToClipboard(_warningMessage)"
+                               Color="Color.Default">
+                        Copy Warning Details
+                    </MudButton>
+                </MudAlert>
+            }
+        </MudPaper>
+    }
+</MudContainer>
+
+@code {
+    private class PackageInput
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Version { get; set; } = string.Empty;
+    }
+
+    private class GraphStats
+    {
+        public int NodeCount { get; set; }
+        public int EdgeCount { get; set; }
+        public int RootCount { get; set; }
+        public int MaxDepthCount { get; set; }
+        public int NotFoundCount { get; set; }
+    }
+
+    private class OptimalVersionsResponse
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; } = "";
+        public Dictionary<string, string> ResolvedVersions { get; set; } = new();
+        public string? Error { get; set; }
+    }
+
+    private List<PackageInput> _packages = new() { new PackageInput() };
+    private int _maxDepth = 2;
+    private int _maxIterations = 1000;
+    private int _maxSimulationDepth = 5;
+    private int _maxCompareVersion = 20;
+    private double _lambda = 2;
+    private bool _initVersions = true;
+    private string? _cvePreset = null;
+    private int _cveCriticalCount = 0;
+    private int _cveHighCount = 0;
+    private int _cveMediumCount = 0;
+    private int _cveLowCount = 0;
+    private bool _isLoading = false;
+    private bool _isCalculating = false;
+    private bool _showLegend = false;
+    private bool _showStats = false;
+    private bool _showNetworkGraph = false;
+    private bool _showOptimalVersions = false;
+    private string _optimalVersionsHtml = string.Empty;
+    private Dictionary<string, string> _resolvedVersions = new();
+    private GraphStats _stats = new();
+    private string? _errorMessage = null;
+    private string? _warningMessage = null;
+
+    private void AddPackage()
+    {
+        _packages.Add(new PackageInput());
+    }
+
+    private void RemovePackage(PackageInput package)
+    {
+        if (_packages.Count > 1)
+        {
+            _packages.Remove(package);
+        }
+        else
+        {
+            Snackbar.Add("You must have at least one package input.", Severity.Warning);
+        }
+    }
+
+    private void ClearAll()
+    {
+        _packages = new() { new PackageInput() };
+        _showLegend = false;
+        _showStats = false;
+        _showNetworkGraph = false;
+        _showOptimalVersions = false;
+        _optimalVersionsHtml = string.Empty;
+        _errorMessage = null;
+        _warningMessage = null;
+    }
+
+    private void LoadExample()
+    {
+        _packages = new()
+        {
+            new PackageInput { Name = "express", Version = "4.18.2" },
+            new PackageInput { Name = "lodash", Version = "4.17.21" }
+        };
+        Snackbar.Add("Example packages loaded!", Severity.Info);
+    }
+
+    private async Task LoadDependenciesFromFile(InputFileChangeEventArgs e)
+    {
+        await LoadPackagesFromFile(e, "dependencies");
+    }
+
+    private async Task LoadDevDependenciesFromFile(InputFileChangeEventArgs e)
+    {
+        await LoadPackagesFromFile(e, "devDependencies");
+    }
+
+    private async Task LoadPackagesFromFile(InputFileChangeEventArgs e, string dependencyType)
+    {
+        var file = e.File;
+        if (file == null)
+        {
+            Snackbar.Add("No file selected.", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024); // 5MB limit
+            using var reader = new System.IO.StreamReader(stream);
+            var content = await reader.ReadToEndAsync();
+            
+            var packageJson = System.Text.Json.JsonDocument.Parse(content);
+            
+            if (!packageJson.RootElement.TryGetProperty(dependencyType, out var depsElement))
+            {
+                Snackbar.Add($"No {dependencyType} found in the package.json file.", Severity.Warning);
+                return;
+            }
+
+            var packages = new List<PackageInput>();
+            
+            foreach (var dep in depsElement.EnumerateObject())
+            {
+                var version = dep.Value.GetString() ?? "";
+                // Clean up version string (remove ^, ~, >=, <=, etc.)
+                version = System.Text.RegularExpressions.Regex.Replace(version, @"^[\^~>=<]+", "");
+                
+                packages.Add(new PackageInput 
+                { 
+                    Name = dep.Name, 
+                    Version = version 
+                });
+            }
+
+            if (packages.Any())
+            {
+                _packages = packages;
+                _showLegend = false;
+                _showStats = false;
+                _showNetworkGraph = false;
+                _showOptimalVersions = false;
+                _optimalVersionsHtml = string.Empty;
+                Snackbar.Add($"Loaded {packages.Count} packages from {dependencyType}!", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add($"No packages found in {dependencyType}.", Severity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error reading package.json: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task FetchRecursiveDependencies(DependencyType dependencyType)
+    {
+        var validPackages = _packages.Where(p => !string.IsNullOrWhiteSpace(p.Name) && !string.IsNullOrWhiteSpace(p.Version)).ToList();
+        if (!validPackages.Any())
+        {
+            Snackbar.Add("Please enter at least one package with name and version.", Severity.Warning);
+            return;
+        }
+
+        _isLoading = true;
+        _showNetworkGraph = true;
+        StateHasChanged();
+
+        try
+        {
+            var endpoint = dependencyType switch
+            {
+                DependencyType.DevDependencies => "/api/dependency/recursive-dev-graph",
+                DependencyType.PeerDependencies => "/api/dependency/recursive-peer-graph",
+                _ => "/api/dependency/recursive-graph"
+            };
+
+            var request = new
+            {
+                packages = validPackages.Select(p => new { name = p.Name, version = p.Version }).ToList(),
+                maxDepth = _maxDepth
+            };
+            
+            var response = await Http.PostAsJsonAsync(endpoint, request);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var graphData = await response.Content.ReadAsStringAsync();
+                
+                // Wait for the DOM to update before calling JavaScript
+                _isLoading = false;
+                StateHasChanged();
+                await Task.Delay(100); // Give DOM time to render
+                
+                await JSRuntime.InvokeVoidAsync("renderGraph", graphData);
+                await JSRuntime.InvokeVoidAsync("renderVersionGraph", graphData);
+                
+                // Parse the JSON to get stats
+                try
+                {
+                    var graphObj = System.Text.Json.JsonDocument.Parse(graphData);
+                    if (graphObj.RootElement.TryGetProperty("nodes", out var nodesElement))
+                    {
+                        var nodes = nodesElement.EnumerateArray().ToList();
+                        _stats.NodeCount = nodes.Count;
+                        _stats.RootCount = nodes.Count(n => n.TryGetProperty("isRoot", out var isRoot) && isRoot.GetBoolean());
+                        _stats.NotFoundCount = nodes.Count(n => n.TryGetProperty("isFoundInRepository", out var found) && !found.GetBoolean());
+                        _stats.MaxDepthCount = nodes.Count(n => n.TryGetProperty("reachedMaxDepth", out var maxDepth) && maxDepth.GetBoolean());
+                    }
+                    if (graphObj.RootElement.TryGetProperty("edges", out var edgesElement))
+                    {
+                        _stats.EdgeCount = edgesElement.GetArrayLength();
+                    }
+                }
+                catch
+                {
+                    // Stats parsing failed, continue without stats
+                }
+                
+                _showStats = true;
+                _showLegend = true;
+                StateHasChanged();
+                
+                Snackbar.Add("Dependencies fetched successfully!", Severity.Success);
+            }
+            else
+            {
+                var errorText = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Error fetching dependencies: {errorText}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task CalculateOptimalVersions(DependencyType dependencyType)
+    {
+        var validPackages = _packages.Where(p => !string.IsNullOrWhiteSpace(p.Name) && !string.IsNullOrWhiteSpace(p.Version)).ToList();
+        if (!validPackages.Any())
+        {
+            Snackbar.Add("Please enter at least one package with name and version.", Severity.Warning);
+            return;
+        }
+
+        _isCalculating = true;
+        _showOptimalVersions = true;
+        _errorMessage = null;
+        _warningMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var endpoint = dependencyType switch
+            {
+                DependencyType.DevDependencies => "/api/dependency/optimal-dev-versions",
+                DependencyType.PeerDependencies => "/api/dependency/optimal-peer-versions",
+                _ => "/api/dependency/optimal-versions"
+            };
+
+            // Determine CVE threshold to send
+            string? cveThresholdValue = null;
+            if (_cvePreset == "CUSTOM")
+            {
+                // For custom, we'll send a special format that the backend can parse
+                // Format: "CUSTOM:critical,high,medium,low"
+                cveThresholdValue = $"CUSTOM:{_cveCriticalCount},{_cveHighCount},{_cveMediumCount},{_cveLowCount}";
+            }
+            else if (!string.IsNullOrEmpty(_cvePreset))
+            {
+                cveThresholdValue = _cvePreset;
+            }
+
+            var request = new
+            {
+                packages = validPackages.Select(p => new { name = p.Name, version = p.Version }).ToList(),
+                maxDepth = _maxDepth,
+                maxIterations = _maxIterations,
+                maxSimulationDepth = _maxSimulationDepth,
+                maxCompareVersion = _maxCompareVersion,
+                lambda = _lambda,
+                initVersions = _initVersions,
+                cveThreshold = cveThresholdValue
+            };
+            
+            var response = await Http.PostAsJsonAsync(endpoint, request);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<OptimalVersionsResponse>();
+                if (result != null && result.Success && result.ResolvedVersions.Any())
+                {
+                    // Clear any previous errors
+                    _errorMessage = null;
+                    _warningMessage = null;
+                    
+                    // Store resolved versions for export
+                    _resolvedVersions = result.ResolvedVersions;
+                    
+                    // Create a set of root package names for highlighting
+                    var rootPackageNames = validPackages.Select(p => p.Name).ToHashSet();
+                    
+                    var html = "<div class='mud-table mud-table-dense'><table class='mud-table-root'><thead><tr><th>Package</th><th>Version</th></tr></thead><tbody>";
+                    foreach (var kvp in result.ResolvedVersions.OrderBy(x => x.Key))
+                    {
+                        // Highlight root packages with a different background color
+                        var isRoot = rootPackageNames.Contains(kvp.Key);
+                        var rowClass = isRoot ? "root-package" : "";
+                        var rowStyle = isRoot ? "style='background-color: #1565c0; font-weight: 600;'" : "";
+                        html += $"<tr class='{rowClass}' {rowStyle}><td>{kvp.Key}</td><td>{kvp.Value}</td></tr>";
+                    }
+                    html += "</tbody></table></div>";
+                    _optimalVersionsHtml = html;
+                    Snackbar.Add(result.Message, Severity.Success);
+                }
+                else if (result != null && !result.Success)
+                {
+                    // Display error in dedicated container
+                    _errorMessage = result.Error ?? result.Message;
+                    _optimalVersionsHtml = string.Empty;
+                    
+                    // Also show brief notification
+                    Snackbar.Add("Calculation failed - see details below", Severity.Warning);
+                }
+                else if (result != null && result.Success && !result.ResolvedVersions.Any())
+                {
+                    // Warning: Success but no versions
+                    _warningMessage = "Calculation completed but no versions were resolved.\n" + (result.Error ?? result.Message);
+                    _optimalVersionsHtml = string.Empty;
+                    Snackbar.Add("No versions found", Severity.Warning);
+                }
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _errorMessage = $"HTTP Error ({response.StatusCode}):\n{errorContent}";
+                _optimalVersionsHtml = string.Empty;
+                Snackbar.Add("Error calculating versions - see details below", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Exception occurred:\n{ex.Message}\n\nStack Trace:\n{ex.StackTrace}";
+            _optimalVersionsHtml = string.Empty;
+            Snackbar.Add("Error occurred - see details below", Severity.Error);
+        }
+        finally
+        {
+            _isCalculating = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ExportOptimalVersionsToJson()
+    {
+        if (_resolvedVersions == null || !_resolvedVersions.Any())
+        {
+            Snackbar.Add("No optimal versions data available to export", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            // Create JSON string
+            var jsonData = System.Text.Json.JsonSerializer.Serialize(_resolvedVersions, new System.Text.Json.JsonSerializerOptions 
+            { 
+                WriteIndented = true 
+            });
+
+            // Create filename with timestamp
+            var timestamp = DateTime.Now.ToString("yyyy-MM-dd-HHmmss");
+            var fileName = $"optimal-versions-{timestamp}.json";
+
+            // Use JavaScript interop to trigger download
+            var dataUrl = $"data:application/json;charset=utf-8,{Uri.EscapeDataString(jsonData)}";
+            await JSRuntime.InvokeVoidAsync("eval", $@"
+                const link = document.createElement('a');
+                link.href = '{dataUrl}';
+                link.download = '{fileName}';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            ");
+
+            Snackbar.Add($"Exported optimal versions to {fileName}", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error exporting: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task CopyToClipboard(string? text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return;
+        }
+
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", text);
+            Snackbar.Add("Copied to clipboard!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to copy: {ex.Message}", Severity.Error);
+        }
+    }
+}

@@ -1,0 +1,63 @@
+\section{Formal Statement} \label{sec:formal_statement}
+
+We define the dependency resolution problem as a search for a truth assignment in a propositional logic system that satisfies a global logical sentence while maximizing a scalar objective function.
+
+\subsection{Definitions and Notation}
+Let $\mathcal{P}$ be the finite set of all available package identifiers in the registry. For each package $p \in \mathcal{P}$, let $\mathcal{V}_p = \{v_1, v_2, \dots, v_n\}$ be the totally ordered set of available versions, sorted descendingly such that $v_1$ is the latest version.
+
+We define a configuration state as a partial function $\sigma: \mathcal{P} \rightharpoonup \bigcup_{p \in \mathcal{P}} \mathcal{V}_p$, which maps a package name to a specific concrete version. We define the proposition $x_{p,v}$ as a boolean variable which is true if and only if package $p$ is installed at version $v$ (i.e., $\sigma(p) = v$).
+
+\subsection{Logical Constraints}
+The validity of a resolution set is determined by a set of logical sentences derived from the package manifests.
+
+Let $D(p, v)$ be the set of dependencies for package $p$ at version $v$. Each element in this set is a tuple $(q, r)$, where $q \in \mathcal{P}$ is the required package and $r$ is the SemVer constraint (a subset of $\mathcal{V}_q$).
+
+For a configuration to be valid, the selection of a specific parent package version necessitates the selection of valid child versions. This can be expressed as a logical implication. For every active package-version pair $(p, v)$, and for every dependency $(q, r) \in D(p, v)$, the following sentence must hold:
+
+\begin{equation}\label{eq:parent_contraint}
+    S_{p,v,q} : x_{p,v} \implies \bigvee_{u \in (\mathcal{V}_q \cap r)} x_{q,u}
+\end{equation}
+
+This sentence $S_{p,v,q}$ states that if $p$ is installed at version $v$, then $q$ \textit{must} be installed at some version $u$, where $u$ satisfies the semantic range $r$. The term $\bigvee$ represents the disjunction (logical OR) of all satisfying versions.
+
+The global validity constraint $\Phi$ is the conjunction of all such implications for the root package and all transitively reachable packages:
+
+\begin{equation}\label{eq:global_constraints}
+    \Phi = \bigwedge_{p \in \text{Dom}(\sigma)} \bigwedge_{(q, r) \in D(p, \sigma(p))} S_{p,\sigma(p),q}
+\end{equation}
+
+Furthermore, to ensure a deterministic state (assuming a flat resolution context for simplicity), we impose the Uniqueness Constraint, enforcing that at most one version of any package is selected:
+\begin{equation}
+    \forall p \in \mathcal{P}, \sum_{v \in \mathcal{V}_p} x_{p,v} \leq 1
+\end{equation}
+
+\subsection{Optimization Metric}
+Since multiple truth assignments for the dependency graph $\Phi$ may exist, we require a metric to distinguish the optimal solution. The heuristic goal is to prioritize the "latest" possible versions to ensure the project uses the most recent features and patches.
+
+We define a \textit{Recency Score} function $\rho(p, v)$ for a chosen version $v \in \mathcal{V}_p$. Let $idx(v)$ be the zero-based index of version $v$ in the descending sorted set $\mathcal{V}_p$ (where index 0 represents the latest version). Let $N_p = |\mathcal{V}_p|$ be the total number of versions available for package $p$.
+
+The score for an individual package assignment is defined as:
+\begin{equation}
+    \rho(p, v) = 1 - \frac{idx(v)}{N_p}
+\end{equation}
+Under this definition, the latest version yields a score of $1.0$, while older versions yield scores approaching $0$.
+
+The global objective is to maximize the average recency across the entire dependency tree. For a complete assignment $\sigma$, we define the Global Reward function $R(\sigma)$:
+\begin{equation}
+    R(\sigma) = \frac{1}{|\text{Dom}(\sigma)|} \sum_{p \in \text{Dom}(\sigma)} \rho(p, \sigma(p))
+\end{equation}
+
+This function normalizes the score to the interval $(0, 1]$, ensuring that the metric is independent of the total number of packages installed.
+
+\subsection{Problem Statement}
+Given a set of root dependencies $R = \{(p_1, r_1), \dots, (p_k, r_k)\}$, the goal is to find a complete assignment $\sigma$ such that:
+
+\begin{enumerate}
+    \item \textbf{Root Satisfaction:} $\forall (p, r) \in R, \sigma(p) \in r$.
+    \item \textbf{Global Consistency:} $\sigma$ satisfies the logical conjunction $\Phi$ \eqref{eq:global_constraints}, meaning all transitive dependencies are resolved and valid.
+    \item \textbf{Optimality:} The Global Reward $R(\sigma)$ is maximized.
+\end{enumerate}
+
+This formulation defines a search space where nodes represent partial assignments. A crucial distinction in this implementation is that the reward function $R(\sigma)$ is only defined for \textit{complete} solutions. Partial or invalid assignments yield a reward of 0, driving the stochastic search toward terminal states that fully satisfy the graph.
+
+\clearpage
