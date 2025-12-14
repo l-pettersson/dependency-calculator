@@ -148,8 +148,8 @@ dependency-calculator/
 │   │   └── DependencyController.cs
 │   ├── Services/                 # Core business logic
 │   │   ├── NpmVersionCalculator.cs    # MCTS algorithm
-│   │   ├── NpmClient.cs               # NPM registry client
-│   │   ├── CveClient.cs               # NVD API client
+│   │   ├── NpmService.cs              # NPM registry service
+│   │   ├── CveService.cs              # NVD API service
 │   │   ├── NpmCacheService.cs         # Package caching
 │   │   ├── CveCacheService.cs         # CVE caching
 │   │   ├── NpmVersionMatcher.cs       # Semver matching
@@ -173,8 +173,8 @@ dependency-calculator/
 ### Key Components
 
 - **NpmVersionCalculator**: Implements the MCTS algorithm for version optimization
-- **NpmClient**: Interfaces with the NPM registry API to fetch package metadata
-- **CveClient**: Retrieves vulnerability data from the National Vulnerability Database
+- **NpmService**: Interfaces with the NPM registry API to fetch package metadata
+- **CveService**: Retrieves vulnerability data from the National Vulnerability Database
 - **NpmVersionMatcher**: Handles semantic version matching and constraint resolution
 - **Cache Services**: SQLite-based caching to reduce API calls and improve performance
 
@@ -188,7 +188,7 @@ dotnet test
 
 The test suite includes:
 - Unit tests for version matching logic
-- Integration tests for NPM and CVE API clients
+- Integration tests for NPM and CVE API services
 - Tests for the MCTS algorithm components
 
 ## 📊 Performance Considerations
@@ -208,6 +208,7 @@ Performance varies based on:
 
 ### Environment Variables
 
+- `ENABLE_MEMORY_CACHE`: Enable in memory cache (default: `0`)
 - `CVE_CACHE_DB_PATH`: Path to the CVE cache SQLite database (default: `./cve_cache.db`)
 - `NPM_CACHE_DB_PATH`: Path to the NPM cache SQLite database (default: `./npm_cache.db`)
 - `ASPNETCORE_URLS`: URLs the application listens on (default: `http://+:5000`)
